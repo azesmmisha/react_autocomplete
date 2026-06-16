@@ -35,8 +35,8 @@ export function Autocomplete<T extends Option>({
 
   const filteredOptions = useMemo(
     () =>
-      options.filter(o =>
-        o.name.toLowerCase().includes(debouncedQuery.toLowerCase()),
+      options.filter(opt =>
+        opt.name.toLowerCase().includes(debouncedQuery.toLowerCase()),
       ),
     [options, debouncedQuery],
   );
