@@ -44,11 +44,18 @@ export function Autocomplete<T extends Option>({
     }
 
     prevDebouncedQueryRef.current = debouncedQuery;
+
     const queryStr = debouncedQuery.trim().toLowerCase();
 
-    const result = queryStr
-      ? options.filter(opt => opt.name.toLowerCase().includes(queryStr))
-      : options;
+    if (!queryStr) {
+      prevFilteredRef.current = options;
+
+      return options;
+    }
+
+    const result = options.filter(opt =>
+      opt.name.toLowerCase().includes(queryStr),
+    );
 
     prevFilteredRef.current = result;
 
