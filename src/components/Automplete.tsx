@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import cn from 'clsx';
 import { useDebounce } from '../services/helpers';
 
@@ -9,43 +9,57 @@ type Option = {
 
 type Props<T extends Option> = {
   options: T[];
-  onSelect: (value: T | null) => void;
+  onSelected: (value: T | null) => void;
+  delay?: number;
 };
 
 export function Autocomplete<T extends Option>({
   options,
-  onSelect,
+  onSelected,
+  delay = 300,
 }: Props<T>) {
   const [query, setQuery] = useState('');
-  const debouncedQuery = useDebounce(query, 300);
+  const debouncedQuery = useDebounce(query, delay);
   const [selectedOption, setSelectedOption] = useState<Option | null>(null);
   const [isOpen, setIsOpen] = useState(false);
+
+  const prevDebouncedQueryRef = useRef<string | null>(null);
+  const prevFilteredRef = useRef<T[]>(options);
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value;
 
     if (selectedOption) {
       setSelectedOption(null);
-      onSelect(null);
+      onSelected(null);
     }
 
     setQuery(value);
     setIsOpen(true);
   };
 
-  const filteredOptions = useMemo(
-    () =>
-      options.filter(opt =>
-        opt.name.toLowerCase().includes(debouncedQuery.toLowerCase()),
-      ),
-    [options, debouncedQuery],
-  );
+  const filteredOptions = useMemo(() => {
+    if (prevDebouncedQueryRef.current === debouncedQuery) {
+      return prevFilteredRef.current;
+    }
+
+    prevDebouncedQueryRef.current = debouncedQuery;
+    const queryStr = debouncedQuery.trim().toLowerCase();
+
+    const result = queryStr
+      ? options.filter(opt => opt.name.toLowerCase().includes(queryStr))
+      : options;
+
+    prevFilteredRef.current = result;
+
+    return result;
+  }, [options, debouncedQuery]);
 
   const handleSelect = (option: T) => {
     setSelectedOption(option);
     setQuery(option.name);
     setIsOpen(false);
-    onSelect(option);
+    onSelected(option);
   };
 
   return (
@@ -66,35 +80,33 @@ export function Autocomplete<T extends Option>({
 
         <div className="dropdown-menu" role="menu" data-cy="suggestions-list">
           <div className="dropdown-content">
-            {filteredOptions.map(option => {
-              return (
-                <div
-                  className={cn('dropdown-item', {
-                    'is-active': selectedOption?.slug === option.slug,
-                  })}
-                  data-cy="suggestion-item"
-                  key={option.slug}
-                  onMouseDown={event => {
-                    event.preventDefault();
-                    handleSelect(option);
-                  }}
-                >
-                  <p className="has-text-link">{option.name}</p>
-                </div>
-              );
-            })}
+            {filteredOptions.map(option => (
+              <div
+                className={cn('dropdown-item', {
+                  'is-active': selectedOption?.slug === option.slug,
+                })}
+                data-cy="suggestion-item"
+                key={option.slug}
+                onMouseDown={event => {
+                  event.preventDefault();
+                  handleSelect(option);
+                }}
+              >
+                <p className="has-text-link">{option.name}</p>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      {isOpen && query && filteredOptions.length === 0 && (
+      {isOpen && query.trim() && filteredOptions.length === 0 && (
         <div
           // eslint-disable-next-line max-len
           className="notification is-danger is-light mt-3 is-align-self-flex-start"
           role="alert"
           data-cy="no-suggestions-message"
         >
-          <p className="has-text-danger">{`No matching suggestions`}</p>
+          <p className="has-text-danger">No matching suggestions</p>
         </div>
       )}
     </>
